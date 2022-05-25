@@ -8,6 +8,9 @@ to them.
 
 int pwm_pin = 10;
 
+/* Initial Constructor for command line */
+Cmd cmd;
+
 void setup()
 {
   // set the led pin as an output. its part of the demo.

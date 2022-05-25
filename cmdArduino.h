@@ -39,34 +39,108 @@
 */
 /**************************************************************************/
 #ifndef CMDARDUINO_H
-#define CMDARDUINO_H
+    #define CMDARDUINO_H
 
-#define MAX_MSG_SIZE    60
-#include <stdint.h>
+    /* Include referenced libraries */
+    #include <stdint.h>
+    #include <Arduino.h>
+    #include <HardwareSerial.h>
 
-// command line structure
-typedef struct _cmd_t
-{
-    char *cmd;
-    void (*func)(int argc, char **argv);
-    struct _cmd_t *next;
-} cmd_t;
 
-class Cmd
-{
-public:
-    Cmd();
-    void begin(uint32_t speed);
-    void poll();
-    void add(const char *name, void (*func)(int argc, char **argv));
-    uint32_t conv(char *str, uint8_t base=10);
+    /* Global Strings to be stored in flash to save RAM */
+    const char cmd_banner[] PROGMEM = "*************** CMD *******************";    // Command Prompt Strings (stored in flash to save RAM)
+    const char cmd_prompt[] PROGMEM = "CMD >> ";                                    // Command Prompt Strings (stored in flash to save RAM)
+    const char cmd_unrecog[] PROGMEM = "CMD: Command not recognized.";              // Command Prompt Strings (stored in flash to save RAM)
 
-private:
-    void display();
-    void parse(char *cmd);
-    void handler();    
-};
+    /* Common Definitions for use with this module */
+    #define CMD_MAX_MSG_SIZE    60                                                  //Maximum command line input supported (in bytes)
+    #define CLI_EXIT_CHAR 0x1B                                                      //ASCII hex for 'Escape' - can be used to end the command line
 
-extern Cmd cmd;
+    /* Custom command line structure */
+    typedef struct _cmd_t
+    {
+        char *cmd;
+        void (*func)(int argc, char **argv);
+        struct _cmd_t *next;
+    } cmd_t;
+
+
+    /* Class Definition */
+    class Cmd
+    {
+
+        public:
+            /* Constructor of Cmd Class - no pointers provided to any streams */
+            Cmd();
+
+            /* Constructor of Cmd Class - pointers provided to a HardwareSerial stream */
+            Cmd(HardwareSerial *stream);
+
+            #ifdef SoftwareSerial_h
+                /* Constructor of Cmd Class - pointers provided to a SoftwareSerial stream */
+                Cmd(SoftwareSerial *stream);
+            #endif
+
+            /* begin() - should only be called if the calling program hasn't initated the serial stream yet */
+            void begin(uint32_t speed, uint8_t config=SERIAL_8N1);
+
+            /* poll() - repeteadly called by the user's loop to check the command line inputs */
+            void poll();
+
+            /* add() - allows the user to add command + callback functions to be triggered when the command is seen */
+            void add(const char *name, void (*func)(int argc, char **argv));
+
+            /* conv() - allows the user to convert a string to number */
+            uint32_t conv(char *str, uint8_t base=10);
+
+            /* user can poll this function to check whether or not the exit character has been passed, allowing them to terminate the command line if desired */
+            uint8_t exit_cli();
+
+        private:
+            /* display() - prints the command banner + command prompt strings to the stream */
+            void display();
+
+            /* display_banner() - prints the command banner string to the stream */
+            void display_banner();
+
+            /* display_prompt() - prints the command prompt string to the stream */
+            void display_prompt();
+
+            /* parse() - performs the buffer parsing to check for commands / arguments */ 
+            void parse(char *cmd);
+
+            /* handler() - called by poll() to handle all periodic tasks/buffer checking */
+            void handler();
+
+            /* point to the appropriate stream, based on what the user has passed */
+            void set_stream();
+
+            /* initialization for pointers and buffers */
+            void init_buffers();
+
+            /* Command input buffer */
+            uint8_t msg[CMD_MAX_MSG_SIZE];
+
+            /* Pointer to the Command input buffer */
+            uint8_t *msg_ptr;
+            
+            /* Custom structure for command table entries */
+            cmd_t *cmd_tbl_list, *cmd_tbl;
+            
+            /* Stream pointer to provide support on multiple HW or SW Serial Interfaces (allows flexibility for stream calls)*/
+            Stream *_Cereal;
+
+            /* HardwareSerial pointer to provide .begin() support for HW Serial Interfaces */
+            HardwareSerial* _hwStream;
+
+            #ifdef SoftwareSerial_h
+                /* SoftwareSerial pointer to provide .begin() support for SW Serial Interfaces */
+                SoftwareSerial* _swStream;
+            #endif
+
+            /* Boolean to allow calling functions to check if the exit character was enterred - allowing the termination of the CLI */
+            uint8_t exit_char = false;
+
+    };
 
 #endif //CMDARDUINO_H

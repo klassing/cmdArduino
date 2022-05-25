@@ -6,6 +6,9 @@ to them.
 *****************************************************/
 #include "cmdArduino.h"
 
+/* Initial Constructor for command line */
+Cmd cmd;
+
 void setup()
 {
   // init the command line and set it for a speed of 57600

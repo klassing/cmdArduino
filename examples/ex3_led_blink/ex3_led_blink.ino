@@ -10,6 +10,9 @@ int led_pin = 13;
 bool led_blink_enb = false;
 int led_blink_delay_time = 1000;
 
+/* Initial Constructor for command line */
+Cmd cmd;
+
 void setup()
 {
   // set the led pin as an output. its part of the demo.

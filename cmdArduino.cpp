@@ -38,38 +38,58 @@
     its possible to execute individual functions within the sketch. 
 */
 /**************************************************************************/
-#include <avr/pgmspace.h>
-#if ARDUINO >= 100
-#include <Arduino.h>
-#else
-#include <WProgram.h>
-#endif
-#include "HardwareSerial.h"
+ 
+/* Included header file */
 #include "cmdArduino.h"
-
-// command line message buffer and pointer
-static uint8_t msg[MAX_MSG_SIZE];
-static uint8_t *msg_ptr;
-
-// linked list for command table
-static cmd_t *cmd_tbl_list, *cmd_tbl;
-
-// text strings for command prompt (stored in flash)
-const char cmd_banner[] PROGMEM = "*************** CMD *******************";
-const char cmd_prompt[] PROGMEM = "CMD >> ";
-const char cmd_unrecog[] PROGMEM = "CMD: Command not recognized.";
-
-Cmd cmd;
 
 /**************************************************************************/
 /*!
-    constructor
+    constructor - no pointers provided to any streams
 */
 /**************************************************************************/
-Cmd::Cmd()
-{
+Cmd::Cmd() {
+
+    /* Pint to the Serial Stream to the default HW Serial interface */
+    _Cereal = &Serial;
+
+    /* init the buffers */
+    init_buffers();
 
 }
+
+/**************************************************************************/
+/*!
+    constructor - pointers provided to a HardwareSerial stream
+*/
+/**************************************************************************/
+Cmd::Cmd(HardwareSerial *stream) {
+
+    /* Point to the HardwareSerial Stream that the user passed */
+    _hwStream = stream;
+    set_stream();
+
+    /* init the buffers */
+    init_buffers();
+
+}
+
+/**************************************************************************/
+/*!
+    constructor - pointers provided to a SoftwareSerial stream
+*/
+/**************************************************************************/
+#ifdef SoftwareSerial_h
+    Cmd::Cmd(SoftwareSerial *stream) {
+
+        /* Point to the HardwareSerial Stream that the user passed */
+        _swStream = stream;
+        set_stream();
+
+        /* init the buffers */
+        init_buffers();
+    }
+#endif
+
 
 /**************************************************************************/
 /*!
@@ -78,15 +98,52 @@ Cmd::Cmd()
 /**************************************************************************/
 void Cmd::display()
 {
+    /* temporary RAM buffer for displaying the command banner + command prompt */
     char buf[50];
 
-    Serial.println();
+    _Cereal->println();
 
+    /* Copy banner from flash to RAM buffer */
     strcpy_P(buf, cmd_banner);
-    Serial.println(buf);
+    _Cereal->println(buf);
 
+    /* Copy prompt from flash to RAM buffer */
     strcpy_P(buf, cmd_prompt);
-    Serial.print(buf);
+    _Cereal->print(buf);
+}
+
+/**************************************************************************/
+/*!
+    Generate the main banner
+*/
+/**************************************************************************/
+void Cmd::display_banner()
+{
+    /* temporary RAM buffer for displaying the command banner */
+    char buf[50];
+
+    _Cereal->println();
+
+    /* Copy banner from flash to RAM buffer */
+    strcpy_P(buf, cmd_banner);
+    _Cereal->println(buf);
+}
+
+/**************************************************************************/
+/*!
+    Generate the main prompt
+*/
+/**************************************************************************/
+void Cmd::display_prompt()
+{
+    /* temporary RAM buffer for displaying the command prompt */
+    char buf[50];
+
+    _Cereal->println();
+
+    /* Copy banner from flash to RAM buffer */
+    strcpy_P(buf, cmd_prompt);
+    _Cereal->print(buf);
 }
 
 /**************************************************************************/
@@ -130,7 +187,7 @@ void Cmd::parse(char *cmd)
 
     // command not recognized. print message and re-generate prompt.
     strcpy_P(buf, cmd_unrecog);
-    Serial.println(buf);
+    _Cereal->println(buf);
 
     display();
 }
@@ -144,37 +201,68 @@ void Cmd::parse(char *cmd)
 /**************************************************************************/
 void Cmd::handler()
 {
-    char c = Serial.read();
+    char c = _Cereal->read();
 
     switch (c)
     {
     case '\r':
-        // terminate the msg and reset the msg ptr. then send
-        // it to the handler for processing.
+        /* If this is the first character (i.e. - user hit 'enter' on a blank line), print a new line and do nothing */
+        if (msg_ptr == msg) {
+            /* print the command prompt */
+            display_prompt();
+
+            /* Break early - no other processing needed for a blank line */
+            break;
+        }
+
+        /* make the Command buffer a null-terminated string */
         *msg_ptr = '\0';
-        Serial.print("\r\n");
+
+        /* Clear the terminal line for printing */
+        _Cereal->println("");
+
+        /* Pass the command buffer to the parser */
         parse((char *)msg);
+
+        /* reset the pointer back to the command buffer to prepare for next entries */
         msg_ptr = msg;
         break;
     
     case '\b':
-        // backspace 
-        Serial.print(c);
+        // ASCII Backspace
         if (msg_ptr > msg)
         {
             msg_ptr--;
+            _Cereal->print(c);
         }
+        break;
+
+    case 0x7F:
+        // delete (used by some terminals for the 'backspace' key)
+        if (msg_ptr > msg)
+        {
+            msg_ptr--;
+            _Cereal->print(c);
+        }
+        break;
+
+    case CLI_EXIT_CHAR:
+        // set the exit character flag
+        exit_char = true;
+
+        // No need to print or move pointer, this is a non valid command character
         break;
     
     default:
         // normal character entered. add it to the buffer
-        Serial.print(c);
+        _Cereal->print(c);
         *msg_ptr++ = c;
 
         // msg too long, clear command and display warning 
-        if ((msg_ptr - msg) == (MAX_MSG_SIZE-1))
+        if ((msg_ptr - msg) == (CMD_MAX_MSG_SIZE-1))
         {
-            Serial.println("Command too long. Pleaes reduce command size.");
+            _Cereal->println("");
+            _Cereal->println("Error: command too long. Please reduce command size.");
             msg_ptr = msg;
         }
         break;
@@ -189,7 +277,7 @@ void Cmd::handler()
 /**************************************************************************/
 void Cmd::poll()
 {
-    while (Serial.available())
+    while (_Cereal->available())
     {
         handler();
     }
@@ -201,16 +289,18 @@ void Cmd::poll()
     and initializes things. 
 */
 /**************************************************************************/
-void Cmd::begin(uint32_t speed)
+void Cmd::begin(uint32_t speed, uint8_t config /*=SERIAL_8N1*/)
 {
-    // init the msg ptr
-    msg_ptr = msg;
+    #ifdef SoftwareSerial_h
+        if (_hwStream) {
+            _hwStream->begin(speed, config);
+        } else {
+            _swStream->begin(speed, config);
+        }
+    #else
+        _hwStream->begin(speed, config);
+    #endif
 
-    // init the command table
-    cmd_tbl_list = NULL;
-
-    // set the serial speed
-    Serial.begin(speed);
 }
 
 /**************************************************************************/
@@ -249,4 +339,42 @@ void Cmd::add(const char *name, void (*func)(int argc, char **argv))
 uint32_t Cmd::conv(char *str, uint8_t base)
 {
     return strtol(str, NULL, base);
+}
+
+/* initialization for pointers and buffers */
+void Cmd::init_buffers() {
+
+    /* init the msg ptr to the start of the command buffer */
+    msg_ptr = msg;
+
+    /* init the command table */
+    cmd_tbl_list = NULL;
+}
+
+/* point to the appropriate stream, based on what the user has passed */
+void Cmd::set_stream() {
+    #ifdef SoftwareSerial_h
+        /* point common Stream to either the HW or SW stream, depending on what was passed */
+        _Cereal = !_hwStream ? (Stream*)_swStream : _hwStream;
+    #else
+        _Cereal = _hwStream;
+    #endif
+}
+
+/* user can poll this function to check whether or not the exit character has been passed, allowing them to terminate the command line if desired */
+uint8_t Cmd::exit_cli() {
+
+    if (exit_char) {
+        /* Clear flag - to prevent infinitely sending the exit flag */
+        exit_char = false;
+
+        /* reset the command buffer pointer, essentially dropping any in-progress commands */
+        msg_ptr = msg;
+
+        /* Return the true flag once per trigger */
+        return true;
+    } else {
+        return false;
+    }
+
 }
