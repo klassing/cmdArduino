@@ -1,6 +1,6 @@
 {
     "name": "cmdArduino",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "description": "Arduino library to provides a simple command line interface exposed via a serial terminal.",
     "keywords": "terminal, callback, ui, command, cli, serial",
     "repository":

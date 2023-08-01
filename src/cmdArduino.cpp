@@ -205,6 +205,9 @@ void Cmd::handler()
 
     switch (c)
     {
+    case '\n':
+        // Do Nothing - only handle CR, ignore LF
+        break;
     case '\r':
         /* If this is the first character (i.e. - user hit 'enter' on a blank line), print a new line and do nothing */
         if (msg_ptr == msg) {
