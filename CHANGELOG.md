@@ -8,7 +8,7 @@
 
 - Forked from [freaklabs cmdArduino v1.0](https://github.com/freaklabs/cmdArduino/releases/tag/v1.0)
 
-## [1.1.0] - 2022-11-14
+## [1.1.0] - 2022-11-14 - Ryan Klassing
 
 - Add support for DEL or BACKSPACE characters (support for multiple terminals that send different character for backspace)
 - Fixed bug where backspace was printed even if the pointer was at the beggining of the command buffer
@@ -18,7 +18,7 @@
 - Re-arrange constructor / begin statements (begin is not mandatory any longer, and is only used to set Stream speed if not previously initialized)
 - Add support for a polling 'exit character' to allow calling loops to end the command line interface, if desired
 
-## [1.1.1] - 2023-08-01
+## [1.1.1] - 2023-08-01 - Ryan Klassing
 
 - Reformat library file/folder structure to comply with latest Arduino standards
 - Updated maximum command line input to be 1024 bytes (previously only supported 60 bytes)
