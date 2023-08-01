@@ -99,7 +99,7 @@ Cmd::Cmd(HardwareSerial *stream) {
 void Cmd::display()
 {
     /* temporary RAM buffer for displaying the command banner + command prompt */
-    char buf[50];
+    char buf[CMD_BUF_SIZE];
 
     _Cereal->println();
 
@@ -120,7 +120,7 @@ void Cmd::display()
 void Cmd::display_banner()
 {
     /* temporary RAM buffer for displaying the command banner */
-    char buf[50];
+    char buf[CMD_BUF_SIZE];
 
     _Cereal->println();
 
@@ -137,7 +137,7 @@ void Cmd::display_banner()
 void Cmd::display_prompt()
 {
     /* temporary RAM buffer for displaying the command prompt */
-    char buf[50];
+    char buf[CMD_BUF_SIZE];
 
     _Cereal->println();
 
@@ -156,8 +156,8 @@ void Cmd::display_prompt()
 void Cmd::parse(char *cmd)
 {
     uint8_t argc, i = 0;
-    char *argv[30];
-    char buf[50];
+    char *argv[CMD_MAX_ARGS];
+    char buf[CMD_BUF_SIZE];
     cmd_t *cmd_entry;
 
     fflush(stdout);
@@ -168,7 +168,7 @@ void Cmd::parse(char *cmd)
     do
     {
         argv[++i] = strtok(NULL, " ");
-    } while ((i < 30) && (argv[i] != NULL));
+    } while ((i < CMD_MAX_ARGS) && (argv[i] != NULL));
     
     // save off the number of arguments for the particular command.
     argc = i;
@@ -262,7 +262,7 @@ void Cmd::handler()
         if ((msg_ptr - msg) == (CMD_MAX_MSG_SIZE-1))
         {
             _Cereal->println("");
-            _Cereal->println("Error: command too long. Please reduce command size.");
+            _Cereal->println(F("Error: command too long. Please reduce command size."));
             msg_ptr = msg;
         }
         break;

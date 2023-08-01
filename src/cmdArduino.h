@@ -51,9 +51,19 @@
     const char cmd_banner[] PROGMEM = "*************** CMD *******************";    // Command Prompt Strings (stored in flash to save RAM)
     const char cmd_prompt[] PROGMEM = "CMD >> ";                                    // Command Prompt Strings (stored in flash to save RAM)
     const char cmd_unrecog[] PROGMEM = "CMD: Command not recognized.";              // Command Prompt Strings (stored in flash to save RAM)
+    #define CMD_BUF_SIZE 50     // Set this number greater than or equal to the largest string length above (used for strcpy)
 
     /* Common Definitions for use with this module */
-    #define CMD_MAX_MSG_SIZE    60                                                  //Maximum command line input supported (in bytes)
+    #ifndef CMD_MAX_MSG_SIZE
+        #define CMD_MAX_MSG_SIZE    1024                                            //Maximum command line input supported (in bytes).
+                                                                                    //If larger input is desired, user can #define CMD_MAX_MSG_SIZE prior to including this library
+    #endif
+
+    #ifndef CMD_MAX_ARGS
+        #define CMD_MAX_ARGS 128    // Maximum number of command line arguments that can be parsed
+                                    //If larger input is desired, user can #define CMD_MAX_ARGS prior to including this library
+    #endif
+
     #define CLI_EXIT_CHAR 0x1B                                                      //ASCII hex for 'Escape' - can be used to end the command line
 
     /* Custom command line structure */

@@ -1,28 +1,3 @@
-# cmdArduino
-
-The Arduino Command Line Interface, aka cmdArduino, is a simple shell that can be run on an Arduino. It's nothing fancy and its main purpose is to allow users to easily call their functions on a running Arduino via a simple serial terminal. It also allows users to pass in arguments from the command line into the functions they wrote so they can easily toggle pins, set blinking speed, set pwm duty cycles, or whatever else might need command line user input. Using it is fairly simple and just requires unzipping the files into the "Arduino/libraries" sub-directory in the Arduino program folder.
-
-- Author: Akiba and Jacinat at FreakLabs
-- Copyright (C) 2009 FreakLabs
-
-## Description
-
-This library provides a very simple command line interface exposed via a serial terminal.  Different callback functions can be assigned to specific commands, and different quantities of arguments can be parsed and passed automatically by the library.
-
-It has been tested with Arduino and ESP32 devices.
-
-To see the latest changes to the library please take a look at the [Changelog](https://github.com/klassing/cmdArduino/blob/main/CHANGELOG.md).
-
-## How To Use
-
-To be added later.
-
-### Definition
-
-To be added later.
-
-## License
-
 Copyright (C) 2009 FreakLabs
 All rights reserved.
 
