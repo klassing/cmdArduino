@@ -17,7 +17,7 @@
     - Note: can be overwritten by pre-compiler statement before including the library
 - Updated the temporary buffers (local use only) to be defined by a #define size (instead of by 'magic numbers')
 
-## [1.1.0] - 2022-11-14
+## [1.1.0] - 2022-11-14 - Ryan Klassing
 
 - Add support for DEL or BACKSPACE characters (support for multiple terminals that send different character for backspace)
 - Fixed bug where backspace was printed even if the pointer was at the beggining of the command buffer
