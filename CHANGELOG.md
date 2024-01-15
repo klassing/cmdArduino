@@ -4,6 +4,16 @@
 
 **Note:** Unreleased changes are checked in but not part of an official release (available through the Arduino IDE or PlatfomIO) yet. This allows you to test WiP features and give feedback to them.
 
+## [1.1.3] - 2024-01-14
+Added the following features:
+- Arrow keys LEFT/RIGHT now supported to move the cursor position in the terminal
+
+- Added ability to "insert text" at the cursor position in the terminal
+
+- Added "delete" key functionality
+
+- Added ability to provide a callback function for handling JSON strings (instead of space delimited messages) if desired
+
 ## [1.1.2] - 2023-08-01
 
 - Minor update to better handle CRLF based terminals (only process on CR, ignore LF)
