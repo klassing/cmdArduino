@@ -64,7 +64,25 @@
                                     //If larger input is desired, user can #define CMD_MAX_ARGS prior to including this library
     #endif
 
-    #define CLI_EXIT_CHAR 0x1B                                                      //ASCII hex for 'Escape' - can be used to end the command line
+    #define CLI_ASCII_CR '\r'       // ASCII Carriage Return
+    #define CLI_ASCII_LF '\n'       // ASCII Line Feed
+    #define CLI_ASCII_BS '\b'       // ASCII Backspace
+    #define CLI_ASCII_DEL 0x7F      // ASCII DEL (sometimes used by terminals when pressing backpsace)
+    #define CLI_ASCII_ESC '\e'      // ASCII ESC
+
+    #define ESC_CMD_SIZE 3                      // Length of escape commands to track (including the \e character).  Currently, only support arrow keys: [A, [C, [D
+    #define ESC_CMD_UP              "\e[A"      // Arrow up (recall last command)
+    #define ESC_CMD_RIGHT           "\e[C"      // Moves the cursor to the right
+    #define ESC_CMD_LEFT            "\e[D"      // Moves the cursor to the left
+
+    #define ESC_EXT_CMD_SIZE 4                  // Length of escape commands to track when a number is detected in the 3rd position
+    #define ESC_CMD_CLR_LINE_FULL   "\e[2K"     // clears the entire line
+    #define ESC_CMD_DEL             "\e[3~"     // command sent by putty when the DEL key is pressed
+    #define ESC_CMD_CLR_LINE_RIGHT  "\e[0K"     // clears to the end of the line (starting at cursors position)
+
+    #define CLI_MODE_STD 0                      // standard / manual input (commands / args parsed by spaces).  Terminal printback is on.
+    #define CLI_MODE_JSON 1                     // JSON / programmatic input (command sequence is parsed as a JSON string with keys, all text must be between {} ).  Terminal printback is off.
+    #define CLI_MODE_JSON_MAN 2                 // JSON / manual input (command sequence is parsed as a JSON string with keys, all text must be between {} ).  Terminal printback is on.
 
     /* Custom command line structure */
     typedef struct _cmd_t
@@ -92,7 +110,7 @@
             #endif
 
             /* begin() - should only be called if the calling program hasn't initated the serial stream yet */
-            void begin(uint32_t speed, uint8_t config=SERIAL_8N1);
+            void begin(uint32_t speed, SerialConfig config=SERIAL_8N1);
 
             /* poll() - repeteadly called by the user's loop to check the command line inputs */
             void poll();
@@ -102,6 +120,19 @@
 
             /* conv() - allows the user to convert a string to number */
             uint32_t conv(char *str, uint8_t base=10);
+
+            /**
+             * @brief Set the the interface mode to be standard (normal user input) or JSON programmatic
+             *          Note: setting the mode will automatically clear the command buffer
+             * @param mode CLI_MODE_STD = standard mode , CLI_MODE_JSON = JSON programmatic mode, CLI_MODE_JSON_MAN = JSON manual mode
+            */
+            void mode(uint8_t mode);
+
+            /**
+             * @brief Allows the user to attach a callback function to be called after receivng a JSON message
+             * @param *json_func() pointer to a callback function provided by the user to be triggered when a JSON message is available
+            */
+           void attach_json_callback(void (*json_func)(char *json_msg));
 
             /* user can poll this function to check whether or not the exit character has been passed, allowing them to terminate the command line if desired */
             uint8_t exit_cli();
@@ -116,8 +147,11 @@
             /* display_prompt() - prints the command prompt string to the stream */
             void display_prompt();
 
-            /* parse() - performs the buffer parsing to check for commands / arguments */ 
-            void parse(char *cmd);
+            /* parse_std() - performs the buffer parsing to check for commands / arguments */ 
+            void parse_std(char *cmd);
+
+            /* parse_json() - performs the buffer parsing based on JSON formatting */
+            void parse_json(char *cmd);
 
             /* handler() - called by poll() to handle all periodic tasks/buffer checking */
             void handler();
@@ -128,6 +162,51 @@
             /* initialization for pointers and buffers */
             void init_buffers();
 
+            /* reset the message pointers */
+            void rst_msg_ptr();
+
+            /* terminate the msg buffer as a string and cleanup pointers */
+            void return_key();
+
+            /* prepare to look for escape commands */
+            void esc_key();
+
+            /* standard char was passed, add to the buffer and proceed as normal */
+            void standard_key(char c);
+
+            /* currently handling ESC commands, so add char to the esc command buffer */
+            void handle_esc_cmd_char(char c);
+
+            /* Check for valid escape commands */
+            void check_esc_cmd();
+
+            /* Escape Command Left Received */
+            void esc_cmd_left();
+
+            /* Escape Command Right Received */
+            void esc_cmd_right();
+
+            /* Escape Command Up Received */
+            void esc_cmd_up();
+
+            /**
+             * @brief Re-print characters from the cursor pointer to the end of the msg buffer
+             * @retval Returns the qty of characters printed
+            */
+            uint16_t cursor_print();
+
+            /* Escape Command DEL (delete key) Received */
+            void esc_cmd_del();
+
+            /* Backspace character */
+            void backspace(char _bs_char=CLI_ASCII_DEL);
+
+            /* Simple print, gated by the global boolean */
+            #define cli_print(x) if(_print){_Cereal->print(x);}
+
+            /* Simple println, gated by the global boolean */
+            #define cli_println(x) if(_print){_Cereal->println(x);}
+
             /* Command input buffer */
             uint8_t msg[CMD_MAX_MSG_SIZE];
 
@@ -136,6 +215,15 @@
             
             /* Custom structure for command table entries */
             cmd_t *cmd_tbl_list, *cmd_tbl;
+
+            /* Escape command input buffer (increase buffer size by one to make it a NULL terminated string )*/
+            uint8_t _esc_cmd[ESC_EXT_CMD_SIZE + 1];
+
+            /* Pointer to the escape command buffer */
+            uint8_t *_esc_cmd_ptr;
+
+            /* Pointer to keep track of the cursor location when performing escape commands */
+            uint8_t *_cursor_ptr;
             
             /* Stream pointer to provide support on multiple HW or SW Serial Interfaces (allows flexibility for stream calls)*/
             Stream *_Cereal;
@@ -148,9 +236,20 @@
                 SoftwareSerial* _swStream;
             #endif
 
-            /* Boolean to allow calling functions to check if the exit character was enterred - allowing the termination of the CLI */
-            uint8_t exit_char = false;
+            /* Boolean to keep track of whether we've received an exit command */
+            uint8_t _exit_cli = false;
 
+            /* Boolean to keep track of whether we've received an extended escape command */
+            uint8_t _ext_esc_cmd = false;
+
+            /* Mode variable to keep track of the command line mode */
+            uint8_t _mode = CLI_MODE_STD;
+
+            /* Boolean to keep track of whether we should printback characters to the terminal */
+            uint8_t _print = true;
+
+            /* callback function to be called after receiving a JSON message */
+            void (*_json_func)(char *json_msg) = NULL;
     };
 
 #endif //CMDARDUINO_H
