@@ -96,7 +96,7 @@ Cmd::Cmd(HardwareSerial *stream) {
     and initializes things. 
 */
 /**************************************************************************/
-void Cmd::begin(uint32_t speed, SerialConfig config /*=SERIAL_8N1*/)
+void Cmd::begin(uint32_t speed, uint32_t config /*=SERIAL_8N1*/)
 {
     #ifdef SoftwareSerial_h
         if (_hwStream) {
