@@ -110,7 +110,7 @@
             #endif
 
             /* begin() - should only be called if the calling program hasn't initated the serial stream yet */
-            void begin(uint32_t speed, SerialConfig config=SERIAL_8N1);
+            void begin(uint32_t speed, uint32_t config=SERIAL_8N1);
 
             /* poll() - repeteadly called by the user's loop to check the command line inputs */
             void poll();
